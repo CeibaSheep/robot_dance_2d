@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 import math
 
@@ -28,38 +29,114 @@ def computeArmLen(relativeData):
     return np.array(armArr).max(), np.array(neckLength).max()
 
 def computeAngle(frame, indexList = []):
+    if len(indexList) == 3:
+        v1 = [frame[indexList[0],0]-frame[indexList[1],0], frame[indexList[0],1]-frame[indexList[1],1]]
+        v2 = [frame[indexList[1],0]-frame[indexList[2],0], frame[indexList[1],1]-frame[indexList[2],1]]
+    else:
+        v1 = [frame[indexList[0],0]-frame[indexList[1],0], frame[indexList[0],1]-frame[indexList[1],1]]
+        v2 = [frame[indexList[2],0]-frame[indexList[3],0], frame[indexList[2],1]-frame[indexList[3],1]]
     
-    return
+    vecProduct = v1[0]*v2[0] + v1[1]*v2[1]
+    v1Value = math.sqrt(pow(v1[0],2) + pow(v1[1],2))
+    v2Value = math.sqrt(pow(v2[0],2) + pow(v2[1],2))
+    cosValue = vecProduct / (v1Value * v2Value)
+    # print ('cosValue:', cosValue)
+    return cosValue
+
 def distance(frame, index1, index2):
     dist = math.sqrt(pow((frame[index1,0]-frame[index2,0]),2) + pow((frame[index1,1]-frame[index2,1]),2))
     return dist
 
+def getRollAngle(name, cos):
+    if name == 'le' or name == 'rs':
+        if cos > 0.5:
+            return -30
+        else:
+            return -85
+    elif name == 'ls' or name == 're':
+        if cos > 0.5:
+            return 30
+        else:
+            return 85
+
+def getYawOrPitchAngle(frame, index1, index2, cos):
+    if cos > 0.5 and cos < 0.94: # 60degree
+        if frame[index1, 0] < frame[index2, 0]:
+            return 90
+        else:
+            return -90
+    elif cos >= 0.938: #20 degree
+        return 0
+    elif cos <=0.5:
+        if frame[index1, 0] < frame[index2, 0]:
+            return 45
+        else:
+            return -45
+
 def computeRobotStatus(relativeData, armLength, neckLength):
     robotStatus = []
     for frame in relativeData:
-        headPitch = distance(frame, [0, 1])>(neckLength*0.3)?20:0
-        headYaw = (frame)
-        hipRoll = computeHipRoll(frame)
-        lElbowRoll = computeElbowRoll(frame,)
-        lElbowYaw = computeElbowYaw(frame)
-        lShoulderPitch = computeShoulderPitch()
-        lShoulderRoll = computeShoulderRoll()
-        rElbowRoll = computeElbowRoll(frame,)
-        rElbowYaw = computeElbowYaw(frame)
-        rShoulderPitch = computeShoulderPitch()
-        rShoulderRoll = computeShoulderRoll()
-        status = [{'headPitch':headPitch,'headYaw':headYaw,'hipRoll':hipRoll,'lElbowRoll':lElbowRoll,\
-                'lElbowYaw':lElbowYaw,'lShoulderPitch':lShoulderPitch,'lShoulderRoll':lShoulderRoll,'rElbowRoll':rElbowRoll,\
-                'rElbowYaw':rElbowYaw,'rShoulderPitch':rShoulderPitch,'rShoudlerRoll':rShoulderRoll}]
-        robotStatus.append(status)
-    return robotStatus   
+        # headPitch
+        headPitch = distance(frame, 0, 1)
+        if headPitch > (neckLength*0.8):
+            headPitch = 0
+        else:
+            headPitch = 20
+        #headYaw
+        headYawCos = computeAngle(frame, [0, 1, 8])
+        print('headYawAngle', headYawCos)
+        if headYawCos < 0.94: # 20degree
+            if frame[0,0] > frame[1,0]: # turn left
+                headYaw = 45
+            else:
+                headYaw = -45 # turn right
+        else:
+            headYaw = 0
+        #hiproll
+        if frame[1, 0] >= 10: # error = 10
+            hipRoll = 20 # left
+        elif frame[1, 0] <= -10:
+            hipRoll = -20
+        elif frame[1, 0]<10 and frame[1,0]>-10:
+            hipRoll = 0
+        #lElbowRoll
+        # cos = computeAngle(frame, [5, 6, 7])
+        # lElbowRoll = getRollAngle('le', cos)
+        # #lElbowYaw
+        # cos = computeAngle(frame, [6, 7, 1, 8])
+        # lElbowYaw = getYawOrPitchAngle(frame, 6, 7, cos)
+        # #lShoulderPitch
+        # cos = computeAngle(frame, [5, 6, 1, 8])
+        # lShoulderPitch = getYawOrPitchAngle(frame, 5, 6, cos)
+        # #lShoulderRoll
+        # cos = distance(frame, 5, 7)/armLength
+        # lShoulderRoll = getRollAngle('ls', cos)
+        # #rElbowRoll
+        # cos = computeAngle(frame, [2, 3, 4])
+        # rElbowRoll = getRollAngle('re', cos)
+        # #rElbowYaw
+        # cos = computeAngle(frame, [3, 4, 1, 8])
+        # rElbowYaw = getYawOrPitchAngle(frame, 3, 4, cos)
+        # # rShoulderPitch
+        # cos = computeAngle(frame, [2, 3, 1, 8])
+        # rShoulderPitch = getYawOrPitchAngle(frame, 2, 3, cos)
+        # # rShoulderRoll
+        # cos = distance(frame, 2, 4)/armLength
+        # rShoulderRoll = getRollAngle('rs', cos)
+        # # status = [{'headPitch':headPitch,'headYaw':headYaw,'hipRoll':hipRoll,'lElbowRoll':lElbowRoll,\
+        # #         'lElbowYaw':lElbowYaw,'lShoulderPitch':lShoulderPitch,'lShoulderRoll':lShoulderRoll,'rElbowRoll':rElbowRoll,\
+        # #         'rElbowYaw':rElbowYaw,'rShoulderPitch':rShoulderPitch,'rShoudlerRoll':rShoulderRoll}]
+        # status = [headPitch,headYaw,0,hipRoll,0,lElbowRoll,lElbowYaw,90,lShoulderPitch, lShoulderRoll,0, rElbowRoll, rElbowYaw, 90, rShoulderPitch, rShoulderRoll,0]
+        # robotStatus.append(status)
+    return robotStatus
 
 def main():
     origData = np.load('data.npy')
     relativeData = computeRelativePosition(origData)
     armLength, neckLength = computeArmLen(relativeData)
-    print('armLength：', armLength, 'neckLength:', neckLength)
+    # print('armLength：', armLength, 'neckLength:', neckLength)
     robotStatus = computeRobotStatus(relativeData, armLength, neckLength)
+    np.save('robotStatus.npy', robotStatus)
                
 if __name__ == "__main__":
     main()
